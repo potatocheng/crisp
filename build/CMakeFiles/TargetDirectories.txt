@@ -1,0 +1,2 @@
+/home/yi/project/crisp/build/CMakeFiles/edit_cache.dir
+/home/yi/project/crisp/build/CMakeFiles/rebuild_cache.dir
