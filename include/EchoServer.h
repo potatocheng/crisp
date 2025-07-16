@@ -9,8 +9,11 @@ enum class EventType {
 };
 
 struct Request {
-    EventType type;
-    std::vector<char> buffer;
+    EventType type_;
+    int client_fd_; // accept event
+    std::vector<char> buffer_;
+
+    Request(EventType type, int fd):type_(type), client_fd_(fd) {}
 };
 
 class EchoServer {
@@ -21,9 +24,10 @@ public:
 
 private:
     void setup_listening_socket();
-    void handle_accept();
-    void handle_send();
-    void handle_recv();
+    void add_accept_request();
+    void add_send_request(Request* req);
+    void add_recv_request(int client_fd);
+    void handle_cqe(io_uring_cqe* cqe);
 
 private:
     io_uring ring_;

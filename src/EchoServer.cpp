@@ -16,7 +16,18 @@ EchoServer::~EchoServer() {
 }
 
 void EchoServer::run() {
+    while(true) {
+        io_uring_submit_and_wait(&ring_, 1);
 
+        io_uring_cqe* cqe;
+        unsigned head;
+        unsigned count = 0;
+
+        io_uring_for_each_cqe(&ring_, head, cqe) {
+            count++;
+            handle_cqe(cqe);
+        }
+    }
 }
 
 void EchoServer::setup_listening_socket() {
@@ -47,26 +58,51 @@ void EchoServer::setup_listening_socket() {
     }
 }
 
-void EchoServer::handle_accept() {
-    sockaddr_in6 client_addr{};
-    socklen_t client_len = sizeof(client_addr);
-    int client_fd = accept(listening_fd_, reinterpret_cast<sockaddr*>(&client_addr), &client_len);
-    if (client_fd < 0) {
-        throw std::runtime_error("Failed to accept connection");
+void EchoServer::add_accept_request() {
+    io_uring_sqe* sqe = io_uring_get_sqe(&ring_);
+    if (!sqe) {
+        throw std::runtime_error("Failed to get SQE");
     }
+    
+    io_uring_prep_accept(sqe, listening_fd_, nullptr, nullptr, 0);
+    auto* req = new Request(EventType::ACCEPT, 0);
+    io_uring_sqe_set_data(sqe, req);
+    io_uring_submit(&ring_);
+}
 
+void EchoServer::add_send_request(Request* req) {
     io_uring_sqe* sqe = io_uring_get_sqe(&ring_);
     if (!sqe) {
         throw std::runtime_error("Failed to get SQE");
     }
 
-    io_uring_prep_accept(sqe, listening_fd_, reinterpret_cast<sockaddr*>(&client_addr), &client_len, 0);
+    req->type_ = EventType::SEND;
+    io_uring_prep_send(sqe, req->client_fd_, req->buffer_.data(), req->buffer_.size(), 0);
+    io_uring_sqe_set_data(sqe, req);
 }
 
-void EchoServer::handle_send() {
+void EchoServer::add_recv_request(int client_fd) {
+    io_uring_sqe* sqe = io_uring_get_sqe(&ring_);
+    if(!sqe) {
+        throw std::runtime_error("Failed to get SQE");
+    }
 
+    Request* req = new Request(EventType::RECV, client_fd);
+    io_uring_prep_recv(sqe, client_fd, req->buffer_.data(), req->buffer_.size(), 0);
+    io_uring_sqe_set_data(sqe, req);
 }
 
-void EchoServer::handle_recv() {
+void EchoServer::handle_cqe(io_uring_cqe* cqe) {
+    Request* req = reinterpret_cast<Request*>(cqe->user_data);
+    switch (req->type_) {
+        case EventType::ACCEPT:
 
+        break;
+        case EventType::RECV:
+            add_send_request(req);
+        break;
+        case EventType::SEND:
+            add_recv_request(req->client_fd_);
+        break;
+    }
 }
