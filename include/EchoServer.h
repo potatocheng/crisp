@@ -1,6 +1,7 @@
 #pragma  once
 #include <liburing.h>
 #include <vector>
+#include <iostream>
 
 enum class EventType {
     ACCEPT,
@@ -13,7 +14,7 @@ struct Request {
     int client_fd_; // accept event
     std::vector<char> buffer_;
 
-    Request(EventType type, int fd):type_(type), client_fd_(fd) {}
+    Request(EventType type, int fd):type_(type), client_fd_(fd), buffer_(1024) {}
 };
 
 class EchoServer {

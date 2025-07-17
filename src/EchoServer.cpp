@@ -8,6 +8,8 @@
 
 EchoServer::EchoServer(int port): port_(port) {
     io_uring_queue_init(1024, &ring_, 0);
+    setup_listening_socket();
+    add_accept_request();
 }
 
 EchoServer::~EchoServer() {
@@ -27,6 +29,8 @@ void EchoServer::run() {
             count++;
             handle_cqe(cqe);
         }
+
+        io_uring_cq_advance(&ring_, count);
     }
 }
 
@@ -94,15 +98,36 @@ void EchoServer::add_recv_request(int client_fd) {
 
 void EchoServer::handle_cqe(io_uring_cqe* cqe) {
     Request* req = reinterpret_cast<Request*>(cqe->user_data);
+
     switch (req->type_) {
         case EventType::ACCEPT:
-
-        break;
+        {
+            int client_fd = cqe->res;
+            std::cout << "accept client fd: " << client_fd << std::endl;
+            add_accept_request();
+            
+            add_recv_request(client_fd);
+            delete req;
+            break;
+        }
         case EventType::RECV:
-            add_send_request(req);
-        break;
+        {
+            if(req->buffer_.size() > 0) {
+                std::cout << "recv data:" << req->buffer_.data() << std::endl;
+                add_send_request(req);
+            } else {
+                close(req->client_fd_);
+                delete req;
+            }
+            break;
+        }
         case EventType::SEND:
+        {
+            std::cout << "send data:" << req->buffer_.data() << std::endl;
             add_recv_request(req->client_fd_);
-        break;
+            
+            delete req;
+            break;
+        }
     }
 }
