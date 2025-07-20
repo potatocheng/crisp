@@ -1,4 +1,4 @@
-#include "../include/EchoServer.h"
+#include "include/EchoServer.h"
 
 int main() {
     EchoServer server{9852};

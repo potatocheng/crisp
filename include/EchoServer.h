@@ -1,21 +1,6 @@
 #pragma  once
 #include <liburing.h>
-#include <vector>
-#include <iostream>
-
-enum class EventType {
-    ACCEPT,
-    SEND,
-    RECV,
-};
-
-struct Request {
-    EventType type_;
-    int client_fd_; // accept event
-    std::vector<char> buffer_;
-
-    Request(EventType type, int fd):type_(type), client_fd_(fd), buffer_(1024) {}
-};
+#include "RequestPool.h"
 
 class EchoServer {
 public:

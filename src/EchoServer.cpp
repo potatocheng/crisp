@@ -6,6 +6,8 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#include <iostream>
+
 EchoServer::EchoServer(int port): port_(port) {
     io_uring_queue_init(1024, &ring_, 0);
     setup_listening_socket();
